@@ -12,6 +12,10 @@
 
 
 @interface REDRangeSlider () <UIGestureRecognizerDelegate>
+{
+    UILabel         *_leftPopupLabel;
+    UILabel         *_rightPopupLabel;
+}
 
 @property (strong, nonatomic) UIImageView *leftHandle;
 @property (strong, nonatomic) UIImageView *rightHandle;
@@ -25,6 +29,9 @@
 
 @property (assign, nonatomic) BOOL didSetupUI;
 
+@property (nonatomic, strong)   UIImageView     *leftPopupView;
+@property (nonatomic, strong)   UIImageView     *rightPopupView;
+
 - (void)setupUI;
 - (void)leftHandlePanEngadged:(UIGestureRecognizer *)gesture;
 - (void)rightHandlePanEngadged:(UIGestureRecognizer *)gesture;
@@ -36,6 +43,9 @@ static CGFloat const kREDHandleTapTargetRadius = 20.0;
 
 
 @implementation REDRangeSlider
+
+@synthesize leftPopupLabel=_leftPopupLabel;
+@synthesize rightPopupLabel=_rightPopupLabel;
 
 
 #pragma mark -
@@ -99,12 +109,28 @@ static CGFloat const kREDHandleTapTargetRadius = 20.0;
     self.leftHandle.frame = CGRectMake(0, 0, CGRectGetWidth(self.leftHandle.frame), CGRectGetHeight(self.leftHandle.frame));
     self.leftHandle.center = CGPointMake(leftXCoor, self.sliderBackground.center.y);
     
+    if (CGAffineTransformEqualToTransform(self.leftPopupView.transform, CGAffineTransformIdentity))
+        self.leftPopupView.center=CGPointMake(self.leftHandle.center.x-self.popupViewOffset.width, CGRectGetMinY(self.leftHandle.frame)-self.popupViewSize.height/2-self.popupViewOffset.height);
+
+    self.leftPopupLabel.frame=CGRectMake(self.popupLabelInsets.left,
+                                         self.popupLabelInsets.top,
+                                         CGRectGetWidth(self.leftPopupView.bounds)-self.popupLabelInsets.left+self.popupLabelInsets.right,
+                                         CGRectGetHeight(self.leftPopupView.bounds)-self.popupLabelInsets.top+self.popupLabelInsets.bottom);
+
     CGFloat rightValuePercentage = self.rightValue/oneHundredPercent;
     CGFloat rightXCoor = floorf((self.trackWidth-self.handleImage.size.width) * rightValuePercentage) + self.handleImage.size.width;
         
     self.rightHandle.frame = CGRectMake(0, 0, CGRectGetWidth(self.rightHandle.frame), CGRectGetHeight(self.rightHandle.frame));
     self.rightHandle.center = CGPointMake(rightXCoor, self.sliderBackground.center.y);
+
+    if (CGAffineTransformEqualToTransform(self.rightPopupView.transform, CGAffineTransformIdentity))
+        self.rightPopupView.center=CGPointMake(self.rightHandle.center.x-self.popupViewOffset.width, CGRectGetMinY(self.rightHandle.frame)-self.popupViewSize.height/2-self.popupViewOffset.height);
     
+    self.rightPopupLabel.frame=CGRectMake(self.popupLabelInsets.left,
+                                         self.popupLabelInsets.top,
+                                         CGRectGetWidth(self.rightPopupView.bounds)-self.popupLabelInsets.left+self.popupLabelInsets.right,
+                                         CGRectGetHeight(self.rightPopupView.bounds)-self.popupLabelInsets.top+self.popupLabelInsets.bottom);
+
     // Fill
     CGFloat fillBackgroundWidth = self.rightHandle.center.x-self.leftHandle.center.x;
     self.sliderFillBackground.frame = CGRectMake(self.leftHandle.center.x, 0, fillBackgroundWidth, CGRectGetHeight(self.sliderFillBackground.frame));
@@ -141,10 +167,24 @@ static CGFloat const kREDHandleTapTargetRadius = 20.0;
     self.leftHandle.frame = CGRectMake(0, 0, self.rightHandleImage.size.width+kREDHandleTapTargetRadius, self.rightHandleImage.size.height+kREDHandleTapTargetRadius);
     self.leftHandle.contentMode = UIViewContentModeCenter;
     self.leftHandle.userInteractionEnabled = YES;
+
+    self.leftPopupView=[[UIImageView alloc] init];
+    self.leftPopupView.image=self.popupImage;
+    self.leftPopupView.frame=CGRectMake(0.f, 0.f, self.popupViewSize.width, self.popupViewSize.height);
+    self.leftPopupView.transform = CGAffineTransformMakeScale(0.01, 0.01);
+    [self addSubview:self.leftPopupView];
+    
+    if (!self.leftPopupLabel.superview)
+        [self.leftPopupView addSubview:self.leftPopupLabel];
     
     UIPanGestureRecognizer *leftPanGesture = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(leftHandlePanEngadged:)];
     leftPanGesture.delegate = self;
     [self.leftHandle addGestureRecognizer:leftPanGesture];
+    
+    UILongPressGestureRecognizer *leftLongPressGesture = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(leftHandleLongPressEngadged:)];
+    leftLongPressGesture.delegate = self;
+    leftLongPressGesture.minimumPressDuration=0;
+    [self.leftHandle addGestureRecognizer:leftLongPressGesture];
     
     [self addSubview:self.leftHandle];
     
@@ -154,13 +194,56 @@ static CGFloat const kREDHandleTapTargetRadius = 20.0;
     self.rightHandle.frame = CGRectMake(0, 0, self.rightHandleImage.size.width+kREDHandleTapTargetRadius, self.rightHandleImage.size.height+kREDHandleTapTargetRadius);
     self.rightHandle.contentMode = UIViewContentModeCenter;
     self.rightHandle.userInteractionEnabled = YES;
-        
+
+    self.rightPopupView=[[UIImageView alloc] init];
+    self.rightPopupView.image=self.popupImage;
+    self.rightPopupView.frame=CGRectMake(0.f, 0.f, self.popupViewSize.width, self.popupViewSize.height);
+    self.rightPopupView.transform = CGAffineTransformMakeScale(0.01, 0.01);
+    [self addSubview:self.rightPopupView];
+    
+    if (!self.rightPopupLabel.superview)
+        [self.rightPopupView addSubview:self.rightPopupLabel];
+    
     UIPanGestureRecognizer *rightPanGesture = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(rightHandlePanEngadged:)];
     rightPanGesture.delegate = self;
     [self.rightHandle addGestureRecognizer:rightPanGesture];
     
+    UILongPressGestureRecognizer *rightLongPressGesture = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(rightHandleLongPressEngadged:)];
+    rightLongPressGesture.delegate = self;
+    rightLongPressGesture.minimumPressDuration=0;
+    [self.rightHandle addGestureRecognizer:rightLongPressGesture];
+    
     [self addSubview:self.rightHandle];
 }
+
+#pragma mark - Popup Labels properties
+
+-(UILabel*)leftPopupLabel
+{
+    if (!_leftPopupLabel)
+    {
+        _leftPopupLabel=[[UILabel alloc] init];
+        _leftPopupLabel.textAlignment=UITextAlignmentCenter;
+        _leftPopupLabel.backgroundColor=[UIColor clearColor];
+        _leftPopupLabel.autoresizingMask=UIViewAutoresizingFlexibleHeight | UIViewAutoresizingFlexibleWidth;
+    }
+    
+    return _leftPopupLabel;
+}
+
+-(UILabel*)rightPopupLabel
+{
+    if (!_rightPopupLabel)
+    {
+        _rightPopupLabel=[[UILabel alloc] init];
+        _rightPopupLabel.textAlignment=UITextAlignmentCenter;
+        _rightPopupLabel.backgroundColor=[UIColor clearColor];
+        _rightPopupLabel.autoresizingMask=UIViewAutoresizingFlexibleHeight | UIViewAutoresizingFlexibleWidth;
+    }
+    
+    return _rightPopupLabel;
+}
+
 
 #pragma mark - Image properties
 
@@ -270,6 +353,7 @@ static CGFloat const kREDHandleTapTargetRadius = 20.0;
         
         self.rawLeftValue += (trackPercentageChange/100.0) * oneHundredPercentOfValues;
         self.leftValue = self.rawLeftValue;
+        self.leftPopupLabel.text=[NSString stringWithFormat:@"%.f",self.leftValue];
         
         [panGesture setTranslation:CGPointZero inView:self];
         [self sendActionsForControlEvents:UIControlEventValueChanged];
@@ -301,6 +385,7 @@ static CGFloat const kREDHandleTapTargetRadius = 20.0;
         
         self.rawRightValue += (trackPercentageChange/100.0) * oneHundredPercentOfValues;
         self.rightValue = self.rawRightValue;
+        self.rightPopupLabel.text=[NSString stringWithFormat:@"%.f",self.rightValue];
         
         [panGesture setTranslation:CGPointZero inView:self];
         [self sendActionsForControlEvents:UIControlEventValueChanged];
@@ -314,7 +399,45 @@ static CGFloat const kREDHandleTapTargetRadius = 20.0;
     }
 }
 
-#pragma mark - 
+- (void)leftHandleLongPressEngadged:(UIGestureRecognizer *)gesture {
+    
+    UILongPressGestureRecognizer *longPressGesture = (UILongPressGestureRecognizer *)gesture;
+    
+    if (longPressGesture.state == UIGestureRecognizerStateBegan)
+    {
+        self.leftPopupLabel.text=[NSString stringWithFormat:@"%.f",self.leftValue];
+        [self _showLeftPopupAnimated];
+    }
+    if (longPressGesture.state == UIGestureRecognizerStateChanged)
+    {
+        self.leftPopupView.center=CGPointMake(self.leftHandle.center.x-self.popupViewOffset.width, CGRectGetMinY(self.leftHandle.frame)-self.popupViewSize.height/2-self.popupViewOffset.height);
+    }
+    else if (longPressGesture.state == UIGestureRecognizerStateCancelled ||
+             longPressGesture.state == UIGestureRecognizerStateEnded ||
+             longPressGesture.state == UIGestureRecognizerStateCancelled)
+    {
+        [self _hideLeftPopupAnimated];
+    }
+}
+
+- (void)rightHandleLongPressEngadged:(UIGestureRecognizer *)gesture {
+    
+    UILongPressGestureRecognizer *longPressGesture = (UILongPressGestureRecognizer *)gesture;
+    
+    if (longPressGesture.state == UIGestureRecognizerStateBegan)
+    {
+        self.rightPopupLabel.text=[NSString stringWithFormat:@"%.f",self.rightValue];
+        [self _showRightPopupAnimated];
+    }
+    else if (longPressGesture.state == UIGestureRecognizerStateCancelled ||
+             longPressGesture.state == UIGestureRecognizerStateEnded ||
+             longPressGesture.state == UIGestureRecognizerStateCancelled)
+    {
+        [self _hideRightPopupAnimated];
+    }
+}
+
+#pragma mark -
 
 - (void)setFrame:(CGRect)frame {
     
@@ -334,6 +457,55 @@ static CGFloat const kREDHandleTapTargetRadius = 20.0;
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer {
     
     return YES;
+}
+
+#pragma mark - show popups animated -
+
+-(void)_showLeftPopupAnimated
+{
+    self.leftPopupView.center=self.leftHandle.center;
+    [UIView animateWithDuration:.25f delay:0.f options:UIViewAnimationOptionCurveEaseInOut animations:^{
+        self.leftPopupView.transform = CGAffineTransformMakeScale(1.2, 1.2);
+        self.leftPopupView.center=CGPointMake(self.leftHandle.center.x-self.popupViewOffset.width, CGRectGetMinY(self.leftHandle.frame)-self.popupViewSize.height/2-self.popupViewOffset.height);
+    } completion:^(BOOL finished)
+     {
+         if (finished)
+             [UIView animateWithDuration:.25f delay:0.f options:UIViewAnimationOptionCurveEaseInOut animations:^{
+                 self.leftPopupView.transform = CGAffineTransformIdentity;
+             } completion:nil];
+     }];
+
+}
+
+-(void)_hideLeftPopupAnimated
+{
+    [UIView animateWithDuration:.25f delay:0.f options:UIViewAnimationOptionCurveEaseInOut animations:^{
+        self.leftPopupView.transform = CGAffineTransformMakeScale(0.01, 0.01);
+        self.leftPopupView.center=self.leftHandle.center;
+    } completion:nil];
+}
+
+-(void)_showRightPopupAnimated
+{
+    self.rightPopupView.center=self.rightHandle.center;
+    [UIView animateWithDuration:.25f delay:0.f options:UIViewAnimationOptionCurveEaseInOut animations:^{
+        self.rightPopupView.transform = CGAffineTransformMakeScale(1.2, 1.2);
+        self.rightPopupView.center=CGPointMake(self.rightHandle.center.x-self.popupViewOffset.width, CGRectGetMinY(self.rightHandle.frame)-self.popupViewSize.height/2-self.popupViewOffset.height);
+    } completion:^(BOOL finished)
+     {
+         if (finished)
+             [UIView animateWithDuration:.25f delay:0.f options:UIViewAnimationOptionCurveEaseInOut animations:^{
+                 self.rightPopupView.transform = CGAffineTransformIdentity;
+             } completion:nil];
+     }];
+}
+
+-(void)_hideRightPopupAnimated
+{
+    [UIView animateWithDuration:.25f delay:0.f options:UIViewAnimationOptionCurveEaseInOut animations:^{
+        self.rightPopupView.transform = CGAffineTransformMakeScale(0.01, 0.01);
+        self.rightPopupView.center=self.rightHandle.center;
+    } completion:nil];
 }
 
 @end

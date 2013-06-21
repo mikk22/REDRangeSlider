@@ -32,4 +32,13 @@
 @property (assign, nonatomic) CGFloat stepValue;
 @property (assign, nonatomic) CGFloat minimumSpacing;
 
+@property (nonatomic)           CGSize          popupViewSize;
+@property (nonatomic)           CGSize          popupViewOffset;
+
+@property (nonatomic, strong)   UIImage         *popupImage;
+
+@property (nonatomic, readonly) UILabel         *leftPopupLabel;
+@property (nonatomic, readonly) UILabel         *rightPopupLabel;
+@property (nonatomic)           UIEdgeInsets    popupLabelInsets;
+
 @end
